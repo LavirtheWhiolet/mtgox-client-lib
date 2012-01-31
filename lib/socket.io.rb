@@ -8,6 +8,8 @@ require 'utils'
 require 'web_socket'
 require 'monitor'
 
+# TODO: Transports must be just transports. They must transfer data only.
+# TODO: Swap arguments in messages. Data must go first.
 
 # Implementation of Socket.IO (see http://socket.io/), client side.
 # 
@@ -28,7 +30,7 @@ class Socket_IO
     uri.chomp! '/'
     # Handshake.
     handshake_response = Faraday.post "#{uri}/1/"
-    raise %Q{Can not connect to #{uri}: #{handshake_response.status}} unless handshake_response.status == 200
+    raise %Q{Can not connect to #{uri}; response status: #{handshake_response.status}} unless handshake_response.status == 200
     session_id, heartbeat_timeout, connection_closing_timeout, supported_transports =
       handshake_response.body.split(':')
     heartbeat_timeout = if heartbeat_timeout.empty? then nil else heartbeat_timeout.to_i; end
@@ -40,7 +42,7 @@ class Socket_IO
         case uri.scheme
         when "http" then "ws"
         when "https" then "wss"
-        else raise %Q{"%Q{uri.scheme}" is not supported yet}
+        else raise %Q{"#{uri.scheme}" scheme is not supported yet}
         end
       WebSocketTransport.new(
         "#{transport_uri_scheme}://#{uri.host}#{uri.path}/1/websocket/#{session_id}",
@@ -89,7 +91,8 @@ class Socket_IO
       
       # Used by Socket_IO and its internal subclasses only.
       # 
-      # See https://github.com/LearnBoost/socket.io-spec, "Messages" section,
+      # It decodes Message encoded according to
+      # https://github.com/LearnBoost/socket.io-spec, "Messages" section,
       # "Encoding" subsection.
       # 
       def decode(encoded_message)
@@ -100,7 +103,7 @@ class Socket_IO
       end
       
     end
-      
+    
     # Used by this class and its subclasses only.
     # 
     # It registers this class in SUBCLASSES and redefines #type appropriately.
