@@ -1,7 +1,9 @@
+STDERR.puts %Q{"#{__FILE__}" is not ready yet.}
 require 'rubygems'
 gem 'facets'
 gem 'faraday'
 gem 'web-socket-ruby'
+gem 'json'
 require 'uri'
 require 'faraday'
 require 'utils'
@@ -9,6 +11,7 @@ require 'web_socket'
 require 'monitor'
 require 'facets/integer/of'
 require 'reentrant_mutex'
+require 'json'
 
 
 # Implementation of client-side Socket.IO (see http://socket.io/).
@@ -177,6 +180,13 @@ class Socket_IO
     
     end
     
+    # 
+    # +data+ is value for #data.
+    # 
+    # +endpoint+ is value for #endpoint.
+    # 
+    # +id+ is value for #id.
+    # 
     def initialize(data = "", endpoint = "", id = "", ignored = nil)
       @data, @endpoint, @id = data, endpoint, id
     end
@@ -218,6 +228,49 @@ class Socket_IO
     end
     
   end
+  
+  class Msg < Message; type 3; end
+  
+  class JSONMessage < Message
+    
+    type 4
+    
+    # TODO
+    
+    # 
+    # +data+ may be JSON script or Hash (which must also be convertable to JSON
+    # script).
+    # 
+    # See also Message#new().
+    # 
+    def initialize(data, endpoint = "", id = "", ignored = nil)
+      super(
+        if data.is_a? String then JSON.parse(data) else data; end,
+        endpoint, id, ignored
+      )
+    end
+    
+    def encode()
+      "#{type}:#{id}:#{endpoint}:#{data.to_json}"
+    end
+    
+  end
+  
+  class Event < JSONMessage
+    
+    type 5
+    
+    def name; data[:name] or data["name"]; end
+    
+    def args; data[:args] or data["args"]; end
+    
+  end
+
+  class Ack < Message; type 6; end
+  
+  class Error < Message; type 7; end
+  
+  class Noop < Message; type 8; end
   
   class UnknownMessage < Message
     
@@ -264,3 +317,5 @@ end
 
 
 s = Socket_IO.open 'https://socketio.mtgox.com/socket.io'
+puts s.receive.json
+s.close()
