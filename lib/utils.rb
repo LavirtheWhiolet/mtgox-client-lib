@@ -6,7 +6,7 @@ def abstract
 end
 
 
-# executes given block once.
+# executes given block once. Returns what the block returns.
 # 
 # The block is executed inside a loop, i. e. all constructs available in
 # the loop are available in the block.
@@ -16,5 +16,5 @@ end
 #   once { print "10,"; redo }  #=> 10,10,10,10,10,10,10,...
 # 
 def once
-  while true; yield; break; end
+  while true; break yield; end
 end
