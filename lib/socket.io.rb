@@ -92,6 +92,8 @@ class Socket_IO
   
   # +message+ is Message.
   def send(message)
+    raise %Q{message Must be #{Message} but #{message.inspect} is given} unless message.is_a? Message
+    #
     @output_mutex.synchronize do
       #
       raise_closed_stream_error if closed?(@output_mutex)
@@ -116,7 +118,10 @@ class Socket_IO
         # Intercept and process service messages. Client does not need them.
         case message
         when Heartbeat then redo
-        when Connect, Disconnect then redo  # TODO: What to do with such messages?
+        when Disconnect then
+          # If endpoint is not specified then this is "socket disconnected"
+          # message.
+          if message.endpoint.nil? or message.endpoint.empty? then close(); redo; end
         end
         #
         return message
@@ -230,14 +235,23 @@ class Socket_IO
       # Register.
       SUBCLASSES[type] = self
       # Redefine #type.
-      eval "def type; #{type}; end"
+      eval "class #{self}; def type; #{type}; end; end"
     end
     
   end
   
+  # Signals disconnection.
+  class Disconnect < Message; type 0; end
+  
+  # Only used for multiple sockets. Signals a connection to the endpoint.
+  # Once the server receives it, it's echoed back to the client.
+  class Connect < Message; type 1; end
+  
+  # A regular message.
   class Msg < Message; type 3; end
   
-  class JSONMessage < Message
+  # A JSON encoded message.
+  class JSONMsg < Message
     
     type 4
     
@@ -264,29 +278,45 @@ class Socket_IO
       data[key]
     end 
     
+    # See Message#encode().
     def encode()
       "#{type}:#{id}:#{endpoint}:#{data.to_json}"
     end
     
   end
   
-  class Event < JSONMessage
+  JSONMessage = JSONMsg
+  
+  # 
+  # Like a JSONMessage, but has mandatory +name+ and +args+ fields.
+  # +name+ is a String and +args+ is an Array.
+  # 
+  class Event < JSONMsg
     
     type 5
     
+    # "name" field of #data.
     def name; data[:name] or data["name"]; end
     
+    # "args" field of #data.
     def args; data[:args] or data["args"]; end
     
   end
 
-  class Ack < Message; type 6; end
+  # An acknowledgment. It contains the message id as the message data.
+  # If a "+" sign follows the message id, it's treated as an event message
+  # packet.
+  class ACK < Message; type 6; end
   
   class Error < Message; type 7; end
   
+  # No operation. Used for example to close a poll after the polling
+  # duration times out.
   class Noop < Message; type 8; end
   
-  class UnknownMessage < Message
+  # Any other Message which is currently unknown to this implementation of
+  # Socket.IO.
+  class UnknownMsg < Message
     
     def initialize(data, endpoint, id, type)
       super(data, endpoint, id)
@@ -303,8 +333,6 @@ class Socket_IO
     raise IOError, "closed stream"
   end
   
-  class Disconnect < Message; type 0; end
-  class Connect < Message; type 1; end
   class Heartbeat < Message; type 2; end
   
   # Thread-unsafe.
@@ -330,6 +358,12 @@ class Socket_IO
 end
 
 
-s = Socket_IO.open 'https://socketio.mtgox.com/socket.io'
-puts s.receive.json
-s.close()
+# When included, it adds all constants from Socket_IO to includer.
+module Socket_IO_Constants
+  
+  for constant in Socket_IO.constants
+    eval "#{constant} = ::Socket_IO::#{constant}"
+  end
+  
+end
+
