@@ -1,4 +1,3 @@
-STDERR.puts %Q{"#{__FILE__}" is not ready yet.}
 require 'rubygems'
 gem 'facets'
 gem 'faraday'
@@ -14,6 +13,8 @@ require 'reentrant_mutex'
 require 'json'
 
 
+# TODO: This class is not ready yet.
+# 
 # Implementation of client-side Socket.IO (see http://socket.io/).
 # 
 # Remark: heartbeats are maintained by Socket_IO automatically so you don't
@@ -161,6 +162,11 @@ class Socket_IO
     end end
   end
   
+  # Generic message described in
+  # https://github.com/LearnBoost/socket.io-spec, "Messages" section.
+  # 
+  # For actual message see Msg.
+  # 
   class Message
     
     class << self
@@ -177,7 +183,7 @@ class Socket_IO
         # 
         (SUBCLASSES[type] or UnknownMessage).new(data, endpoint, id, type)
       end
-    
+      
     end
     
     # 
@@ -235,20 +241,28 @@ class Socket_IO
     
     type 4
     
-    # TODO
-    
     # 
-    # +data+ may be JSON script or Hash (which must also be convertable to JSON
-    # script).
+    # +data+ may be JSON script or map.
     # 
     # See also Message#new().
     # 
     def initialize(data, endpoint = "", id = "", ignored = nil)
-      super(
-        if data.is_a? String then JSON.parse(data) else data; end,
-        endpoint, id, ignored
-      )
+      #
+      data = if data.is_a? String then JSON.parse(data); else data; end
+      # 
+      super(data, endpoint, id, ignored)
     end
+    
+    # It is always map (representable in JSON).
+    # 
+    # See also Message#data.
+    # 
+    def data; super; end
+    
+    # Alias to <code>data[key]</code>.
+    def [](key)
+      data[key]
+    end 
     
     def encode()
       "#{type}:#{id}:#{endpoint}:#{data.to_json}"
