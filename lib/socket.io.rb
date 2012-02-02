@@ -13,8 +13,6 @@ require 'reentrant_mutex'
 require 'json'
 
 
-# TODO: This class is not ready yet.
-# 
 # Implementation of client-side Socket.IO (see http://socket.io/).
 # 
 # Remark: heartbeats are maintained by Socket_IO automatically so you don't
