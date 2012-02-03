@@ -1,3 +1,4 @@
+require 'monitor'
 
 
 class ReentrantMutex
