@@ -352,7 +352,7 @@ class Socket_IO
 end
 
 
-# When included, it adds all constants from Socket_IO to includer.
+# When included, it adds all constants and classes from Socket_IO to includer.
 module Socket_IO_Constants
   
   for constant in Socket_IO.constants
