@@ -5,7 +5,6 @@ require 'utils'
 require 'web_socket'
 require 'monitor'
 require 'facets/integer/of'
-require 'reentrant_mutex'
 require 'json'
 
 
@@ -68,8 +67,8 @@ class Socket_IO
         raise %Q{Server supports following transports: #{transports}; but none of them are implemented yet}
       end
     # Synchronize on transport ends.
-    @input_mutex = ReentrantMutex.new
-    @output_mutex = ReentrantMutex.new
+    @input_mutex = Monitor.new
+    @output_mutex = Monitor.new
     # -- At this moment the socket is fully functional. One
     # -- may send and receive messages over it.
     # Start heartbeat (if needed).
@@ -86,7 +85,7 @@ class Socket_IO
   
   # +message+ is Message.
   def send(message)
-    raise %Q{message Must be #{Message} but #{message.inspect} is given} unless message.is_a? Message
+    raise %Q{message must be #{Message} but #{message.inspect} is given} unless message.is_a? Message
     #
     @output_mutex.synchronize do
       #
