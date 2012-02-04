@@ -121,12 +121,6 @@ class MtGox
 end
 
 
-MtGox.open do |exchange|
-  puts exchange.next_ticker
-  puts exchange.next_ticker
-  puts exchange.next_ticker
-end
-
 __END__
 
 # Here I was learning how to send authenticated commands via MtGox. Socket.IO.
