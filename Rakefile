@@ -1,0 +1,4 @@
+
+LIB = "lib"
+BIN = "bin"
+

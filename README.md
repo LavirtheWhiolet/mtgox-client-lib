@@ -31,10 +31,11 @@ RDoc (with `rdoc lib` command).
 
 "bin" directory contains source code for executables. Ruby scripts (with "*.rb"
 filename) may be executed directly, but don't forget to tell Ruby where the
-library resides (using "-I" key; for example: `ruby -Ilib bin/some-script.rb`).
+library modules reside (using "-I" key; for example
+`ruby -Ilib bin/some-script.rb`).
 
-You may use Rake to perform various tasks: installing executables into home
-directory, building HTML documentation. Use `rake --tasks` command to see
+You may use Rake to perform various tasks (for example, installing executables
+into system directory with executables). Use `rake --tasks` command to see
 what you can do with Rake here (and what is implemented in "Rakefile").
 
 Development
