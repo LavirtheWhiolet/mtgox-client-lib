@@ -40,7 +40,7 @@ what you can do with Rake here (and what is implemented in "Rakefile").
 Development
 -----------
 
-There are no particular rules effective for this project yet. Anyone can take
+There are no particular effective rules in this project yet. Anyone can take
 this code and do with it what he wants. Just don't forget that the user
-of the code should be able to sort it out (what is it for, how to use it etc.)
+of the code should be able to sort it out (what is it for, how to use it, etc.)
 and to sort it out quickly.
