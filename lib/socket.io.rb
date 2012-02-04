@@ -58,11 +58,13 @@ class Socket_IO
           case uri.scheme
           when "http" then "ws"
           when "https" then "wss"
+          # TODO: Low priority. Implement other URI schemes.
           else raise %Q{"#{uri.scheme}" scheme is not supported yet}
           end
         WebSocket.new(
           "#{transport_uri_scheme}://#{uri.host}#{uri.path}/1/websocket/#{session_id}"
         )
+      # TODO: Implement other transports.
       else
         raise %Q{Server supports following transports: #{transports}; but none of them are implemented yet}
       end

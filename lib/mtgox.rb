@@ -1,4 +1,136 @@
+require 'requirements'
+require 'mathn'
+require 'socket.io'
+require 'utils'
+
+
+# Model of the Mt. Gox exchange.
+# 
+# To start using Mt. Gox you should open it. See #open().
+# 
+# Don't forget to #close() Mt. Gox after you have used it!
+# 
+# TODO: This class is not ready yet.
+# 
+class MtGox
+  
+  # Mt. Gox sends money values multiplied by some number. This map
+  # maps ISO-4217 currency code to the mutliplier Mt. Gox applies.
+  CURRENCY_MULTIPLIERS = {
+    "BTC" => 1E8.to_i,
+    "USD" => 1E5.to_i,
+    "JPY" => 1E3.to_i,
+  }
+  
+  private_class_method :new
+  
+  # opens Mt. Gox and returns MtGox instance. If block is given then it is
+  # passed with the MtGox instance, and the result of the block is returned.
+  # 
+  def self.open(use_secure_connection = true, &block)
+    #
+    result = new(use_secure_connection)
+    #
+    if block then begin return block[result]; ensure result.close(); end
+    else return result; end
+  end
+  
+  def initialize(use_secure_connection)  # :nodoc:
+    #
+    @conn =
+      if use_secure_connection then Socket_IO.open("https://socketio.mtgox.com/socket.io")
+      else Socket_IO.open("http://socketio.mtgox.com/socket.io"); end
+    #
+    @ticker = nil
+    # Subscribe to ticker.
+    @conn.send Socket_IO::JSONMsg[
+      "op" => "mtgox.subscribe",
+      "type" => "ticker"
+    ]
+  end
+  
+  # Current Ticker.
+  def ticker
+    @ticker or next_ticker
+  end
+  
+  # Ticker next after current (yes, this method waits for Ticker change).
+  def next_ticker
+    once do
+      # Read next message.
+      msg = @conn.receive()
+      # Skip non-ticker messages.
+      redo unless msg.is_a?(Socket_IO::JSONMsg) and msg["channel"] == "d5f06780-30a8-4a48-a2f8-7ed181b4a13f" and msg["ticker"]
+      # Skip tickers in non-current currency.
+      redo if msg["ticker"]["buy"]["currency"] != currency
+      #
+      new_ticker = Ticker.new(
+        parse(msg["ticker"]["sell"]),
+        parse(msg["ticker"]["buy"])
+      )
+      # 
+      redo if new_ticker == @ticker
+      #
+      return @ticker = new_ticker
+    end
+  end
+  
+  def close()
+    @conn.close()
+    @conn = nil
+  end
+  
+  # ISO-4217 code of the currency you are currently working with.
+  def currency
+    "USD"
+  end
+  
+  class Ticker
+    
+    def initialize(sell, buy)
+      @sell, @buy = sell, buy
+    end
+    
+    # Sell price, MtGox#currency per bitcoin.
+    attr_reader :sell
+    
+    # Buy price, MtGox#currency per bitcoin.
+    attr_reader :buy
+    
+    def to_s
+      "Sell: #{sell.to_f} Buy: #{buy.to_f}"
+    end
+    
+    def == other
+      self.class == other.class &&
+      self.sell == other.sell &&
+      self.buy == other.buy
+    end
+    
+    alias eql? ===
+    
+  end
+  
+  private
+  
+  def parse(value_as_json_script)
+    s = value_as_json_script
+    return s["value_int"].to_i / CURRENCY_MULTIPLIERS[s["currency"]]
+  end
+  
+end
+
+
+MtGox.open do |exchange|
+  puts exchange.next_ticker
+  puts exchange.next_ticker
+  puts exchange.next_ticker
+end
+
 __END__
+
+# Here I was learning how to send authenticated commands via MtGox. Socket.IO.
+
 require 'requirements'
 require 'socket.io'
 require 'json'
