@@ -6,22 +6,20 @@ require 'utils'
 
 # Model of the Mt. Gox exchange.
 # 
-# To start using Mt. Gox you should open it. See #open().
-# 
-# Don't forget to #close() Mt. Gox after you have used it!
+# Remark: don't forget to #close() the MtGox instance after you have used it!
 # 
 # TODO: This class needs more functionality.
 # 
 class MtGox
   
   # TODO: Messages handling should be rewritten in this class.
-  # One can not subscribe to Ticker and to send authenticated
-  # requests (implying response) simultaneously.
+  # Currently one can not subscribe to Ticker and to send authenticated
+  # requests (which imply response) simultaneously.
   
   # Mt. Gox sends money values multiplied by some number. This map
   # maps ISO-4217 currency code to the mutliplier Mt. Gox applies.
   # 
-  # Remark: the multipliers should be integer!
+  # Remark: the multipliers should be Integer numbers!
   # 
   CURRENCY_MULTIPLIERS = {
     "BTC" => 1E8.to_i,
@@ -29,31 +27,41 @@ class MtGox
     "JPY" => 1E3.to_i,
   }
   
-  private_class_method :new
-  
-  # opens Mt. Gox and returns MtGox instance. If block is given then it is
-  # passed with the MtGox instance, and the result of the block is returned.
-  # 
-  def self.open(use_secure_connection = true, &block)
-    #
-    result = new(use_secure_connection)
-    #
-    if block then begin return block[result]; ensure result.close(); end
-    else return result; end
+  begin
+    @@instance = nil
   end
   
-  def initialize(use_secure_connection)  # :nodoc:
-    #
-    @conn =
-      if use_secure_connection then Socket_IO.open("https://socketio.mtgox.com/socket.io")
-      else Socket_IO.open("http://socketio.mtgox.com/socket.io"); end
-    #
+  private_class_method :new
+  
+  # returns MtGox instance.
+  # 
+  # Remark: don't forget to #close() the instance after you have used it!
+  # 
+  def self.instance
+    @@instance ||= new
+    return @@instance
+  end
+  
+  def initialize  # :nodoc:
     @ticker = nil
-    # Subscribe to ticker.
-    @conn.send Socket_IO::JSONMsg[
-      "op" => "mtgox.subscribe",
-      "type" => "ticker"
-    ]
+    @use_secure_connection = true
+  end
+  
+  # tells this MtGox instance to use or to not use secure protocols (depending
+  # on +value+) when connecting to the actual exchange. Unsecure connection
+  # is usually faster (especially at establishing stage) but, as the name
+  # implies, it is unsecure.
+  # 
+  # returns this MtGox instance.
+  # 
+  def use_secure_connection(value = true)
+    # 
+    return if @use_secure_connection == value
+    # 
+    close()
+    @use_secure_connection = value
+    #
+    return self
   end
   
   # Current Ticker.
@@ -65,7 +73,7 @@ class MtGox
   def next_ticker
     once do
       # Read next message.
-      msg = @conn.receive()
+      msg = connection.receive()
       # Skip non-ticker messages.
       redo unless msg.is_a?(Socket_IO::JSONMsg) and msg["channel"] == "d5f06780-30a8-4a48-a2f8-7ed181b4a13f" and msg["ticker"]
       # Skip tickers in non-current currency.
@@ -82,9 +90,14 @@ class MtGox
     end
   end
   
+  # 
+  # frees all system resources grabbed by this MtGox instance, i. e. closes
+  # all connections, frees all mutexes etc. The instance remains usable
+  # but further operations require extra time to grab the freed resources again.
+  # 
   def close()
-    @conn.close()
-    @conn = nil
+    # Close connection to actual exchange (if needed).
+    (@conn.close(); @conn = nil) if @conn
   end
   
   # ISO-4217 code of the currency you are currently working with.
@@ -123,6 +136,24 @@ class MtGox
   end
   
   private
+  
+  # Socket_IO connection to actual exchange.
+  def connection
+    # Establish connection (if not established yet).
+    if not @conn then
+      # Connect.
+      @conn =
+        if @use_secure_connection then Socket_IO.open("https://socketio.mtgox.com/socket.io")
+        else Socket_IO.open("http://socketio.mtgox.com/socket.io"); end
+      # Subscribe to ticker.
+      @conn.send Socket_IO::JSONMsg[
+        "op" => "mtgox.subscribe",
+        "type" => "ticker"
+      ]
+    end
+    #
+    return @conn
+  end
   
   def parse(value_as_json_script)
     s = value_as_json_script
