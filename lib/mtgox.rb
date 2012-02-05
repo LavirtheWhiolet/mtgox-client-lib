@@ -27,32 +27,30 @@ class MtGox
     "JPY" => 1E3.to_i,
   }
   
-  begin
-    @@instance = nil
+  def initialize  # :nodoc:
+    @ticker = nil
+    @use_secure_connection = true
+    @conn = nil
   end
   
   private_class_method :new
+  
+  begin
+    @@instance = new
+  end
   
   # returns MtGox instance.
   # 
   # Remark: don't forget to #close() the instance after you have used it!
   # 
-  def self.instance
-    @@instance ||= new
-    return @@instance
-  end
+  def self.instance; @@instance; end
   
-  def initialize  # :nodoc:
-    @ticker = nil
-    @use_secure_connection = true
-  end
-  
-  # tells this MtGox instance to use or to not use secure protocols (depending
+  # tells MtGox to use or to not use secure protocols (depending
   # on +value+) when connecting to the actual exchange. Unsecure connection
   # is usually faster (especially at establishing stage) but, as the name
   # implies, it is unsecure.
   # 
-  # returns this MtGox instance.
+  # returns MtGox.
   # 
   def use_secure_connection(value = true)
     # 
@@ -91,7 +89,7 @@ class MtGox
   end
   
   # 
-  # frees all system resources grabbed by this MtGox instance, i. e. closes
+  # frees all system resources grabbed by MtGox, i. e. closes
   # all connections, frees all mutexes etc. The instance remains usable
   # but further operations require extra time to grab the freed resources again.
   # 
