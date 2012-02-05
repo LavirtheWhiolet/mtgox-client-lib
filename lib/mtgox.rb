@@ -27,24 +27,6 @@ class MtGox
     "JPY" => 1E3.to_i,
   }
   
-  def initialize  # :nodoc:
-    @ticker = nil
-    @use_secure_connection = true
-    @conn = nil
-  end
-  
-  private_class_method :new
-  
-  begin
-    @@instance = new
-  end
-  
-  # returns MtGox instance.
-  # 
-  # Remark: don't forget to #close() the instance after you have used it!
-  # 
-  def self.instance; @@instance; end
-  
   # tells MtGox to use or to not use secure protocols (depending
   # on +value+) when connecting to the actual exchange. Unsecure connection
   # is usually faster (especially at establishing stage) but, as the name
@@ -67,7 +49,7 @@ class MtGox
     @ticker or next_ticker
   end
   
-  # Ticker next after current (yes, this method waits for Ticker change).
+  # Ticker next after current (yes, this method waits for the Ticker change).
   def next_ticker
     once do
       # Read next message.
@@ -102,6 +84,24 @@ class MtGox
   def currency
     "USD"
   end
+  
+  def initialize  # :nodoc:
+    @ticker = nil
+    @use_secure_connection = true
+    @conn = nil
+  end
+  
+  private_class_method :new
+  
+  begin
+    @@instance = new
+  end
+  
+  # MtGox instance.
+  # 
+  # Remark: don't forget to #close() the instance after you have used it!
+  # 
+  def self.instance; @@instance; end
   
   class Ticker
     
