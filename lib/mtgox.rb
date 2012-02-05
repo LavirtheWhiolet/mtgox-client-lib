@@ -10,12 +10,19 @@ require 'utils'
 # 
 # Don't forget to #close() Mt. Gox after you have used it!
 # 
-# TODO: This class is not ready yet.
+# TODO: This class needs more functionality.
 # 
 class MtGox
   
+  # TODO: Messages handling should be rewritten in this class.
+  # One can not subscribe to Ticker and to send authenticated
+  # requests (implying response) simultaneously.
+  
   # Mt. Gox sends money values multiplied by some number. This map
   # maps ISO-4217 currency code to the mutliplier Mt. Gox applies.
+  # 
+  # Remark: the multipliers should be integer!
+  # 
   CURRENCY_MULTIPLIERS = {
     "BTC" => 1E8.to_i,
     "USD" => 1E5.to_i,
@@ -94,8 +101,12 @@ class MtGox
     # Sell price, MtGox#currency per bitcoin.
     attr_reader :sell
     
+    alias sell_price sell
+    
     # Buy price, MtGox#currency per bitcoin.
     attr_reader :buy
+    
+    alias buy_price buy
     
     def to_s
       "Sell: #{sell.to_f} Buy: #{buy.to_f}"
