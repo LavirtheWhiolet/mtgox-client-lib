@@ -170,29 +170,36 @@ class MtGox
   end
   
   def request_ticker()
-    # Try to request the Ticker using HTTP API version 1.
-    begin
-      #
-      conn = Faraday.new(
-        :headers => {
-          :accept => "application/json",
-          :user_agent => "Mt. Gox Client Library",
-        },
-        :ssl => {:verify => @use_secure_connection},
-        :url => "https://mtgox.com"
-      )
-      # Request!
-      resp = conn.get("/api/1/#{item}#{currency}/public/ticker")
-      # Parse response.
-      if resp.status != 200 then raise HTTPAPIRequestFailure; end
-      body = resp.body
-      body = JSON.parse(resp.body)
-      ticker_json = body["return"] or raise %Q{Invalid format of response (may be this implementation is out of date?):\n#{resp.body}}
-      return parse_ticker(ticker_json)
-    # Fall back to next ticker. It's too late to get current one.
-    rescue Errno::ECONNRESET, HTTPAPIRequestFailed
-      return next_ticker
-    end
+    return next_ticker
+    # TODO: Send explicit request to the exchange, don't wait until the ticker
+    # changes.
+# 
+# Following code does not work because Mt. Gox sends different tickers
+# when using HTTP API and Socket.IO connection.
+# 
+#    # Try to request the Ticker using HTTP API version 1.
+#    begin
+#      #
+#      conn = Faraday.new(
+#        :headers => {
+#          :accept => "application/json",
+#          :user_agent => "Mt. Gox Client Library",
+#        },
+#        :ssl => {:verify => @use_secure_connection},
+#        :url => "https://mtgox.com"
+#      )
+#      # Request!
+#      resp = conn.get("/api/1/#{item}#{currency}/public/ticker")
+#      # Parse response.
+#      if resp.status != 200 then raise HTTPAPIRequestFailure; end
+#      body = resp.body
+#      body = JSON.parse(resp.body)
+#      ticker_json = body["return"] or raise %Q{Invalid format of response (may be this implementation is out of date?):\n#{resp.body}}
+#      return parse_ticker(ticker_json)
+#    # Fall back to next ticker. It's too late to get current one.
+#    rescue Errno::ECONNRESET, HTTPAPIRequestFailed
+#      return next_ticker
+#    end
   end
   
   class HTTPAPIRequestFailed < Exception; end
