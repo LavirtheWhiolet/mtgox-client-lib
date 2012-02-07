@@ -21,25 +21,45 @@ class VirtualAccount
   
   private_class_method :new
   
-  # passes +block+ with the opened VirtualAccount. No other process may
-  # access the VirtualAccount until this operation terminates. The
-  # VirtualAccount is saved after the +block+ terminates. 
-  def self.open(filename, &block)
-    # Grab lock.
-    File.open(filename + ".lock", "w") do |lockfile|
-      lockfile.flock(File::LOCK_EX)
-      # Read content (or create new one).
-      content =
-        if File.exist? filename then File.open(filename, "rb") { |file| Marshal.load(file) }
-        else new; end
-      begin
-        #
-        return yield(content)
-      ensure
-        # Save content (anyway).
-        File.open(filename, "wb") { |file| Marshal.dump(content, file) }
+  class << self
+  
+    # opens VirtualAccount stored in specified file and passes it to +block+.
+    # If the file does not exist then new VirtualAccount is created.
+    # 
+    # No other process may access the VirtualAccount until this operation
+    # terminates.
+    # 
+    def open(filename, &block)
+      # Grab lock.
+      File.open(filename + ".lock", "w") do |lockfile|
+        lockfile.flock(File::LOCK_EX)
+        # Read content (or create new one).
+        content =
+          if File.exist? filename then File.open(filename, "rb") { |file| Marshal.load(file) }
+          else new; end
+        begin
+          #
+          return yield(content)
+        ensure
+          # Save content (anyway).
+          File.open(filename, "wb") { |file| Marshal.dump(content, file) }
+        end
+      end  
+    end
+    
+    # closes VirtualAccount stored in specified file (in financial sense).
+    def close(filename)
+      # Grab lock.
+      File.open(lockfilename = filename + ".lock", "w") do |lockfile|
+        lockfile.flock(File::LOCK_EX)
+        # Delete everything!
+        File.delete filename if File.exist? filename
+        File.delete lockfilename
       end
-    end  
+    end
+    
+    alias delete close
+    
   end
   
   def initialize()
@@ -73,19 +93,11 @@ class VirtualAccount
     end
   end
   
-  def self.delete(filename)
-    # Grab lock.
-    File.open(lockfilename = filename + ".lock", "w") do |lockfile|
-      lockfile.flock(File::LOCK_EX)
-      # Delete everything!
-      File.delete filename if File.exist? filename
-      File.delete lockfilename
-    end
+  def to_human_readable_yaml
+    self.map { |item, amount| "#{item}: #{amount.to_f}" }.join("\n")
   end
   
-  def to_yaml
-    self.map { |item, amount| "#{item}: #{amount}" }.join("\n")
-  end
+  alias to_hr_yaml to_human_readable_yaml
   
 end
 
@@ -133,7 +145,8 @@ class VirtualClient
   
   desc <<-TEXT
     add-funds amount
-        Just adds +amount+ of <%=exchange.currency%> to your account.
+        Just adds +amount+ of <%=exchange.currency%> to your account. If the
+        account does not exist then it is created.
   TEXT
   def add_funds(amount)
     amount = arg_to_rational(amount)
@@ -142,19 +155,19 @@ class VirtualClient
       account.deposit(exchange.currency, amount)
       log_yaml(
         "subject: #{amount} #{exchange.currency} appeared in your account from nowhere",
-        "balance:\n" +
-          account.to_yaml
+        balance_yaml_entry
       )
     end
   end
   
   desc <<-TEXT
-    clear-account
-        Removes all funds from your account.
+    close-account
+        Closes your account - all funds are removed, all debts are written off
+        etc.
   TEXT
-  def clear_account()
-    VirtualAccount.delete(@account_filename)
-    log_yaml("subject: account cleared")
+  def close_account()
+    VirtualAccount.close(@account_filename)
+    log_yaml("subject: account closed")
   end
   
   desc <<-TEXT
@@ -163,15 +176,14 @@ class VirtualClient
   TEXT
   def info
     with_account do
-      puts "balance:\n" +
-        account.to_yaml.indent(2)
+      puts balance_yaml_entry
       puts "commission: #{(commission * 100).to_f}%"
     end
   end
   
   desc <<-TEXT
     buy amount [price]
-        Buys +amount+ of <%=exchange.item%> for +price+ in <%=exchange.currency%>.
+        Buys +amount+ of <%=exchange.item%> for +price+ <%=exchange.currency%> per <%=exchange.item%>.
         If price is not specified then <%=exchange.item%> are bought at
         market price.
   TEXT
@@ -181,7 +193,7 @@ class VirtualClient
     # Wait until the price reaches requested one.
     until exchange.ticker.sell_price <= price
       log_yaml(
-        "ticker: {sell: #{exchange.ticker.sell.to_f}, buy: #{exchange.ticker.price.to_f}}",
+        "ticker: {sell: #{exchange.ticker.sell.to_f}, buy: #{exchange.ticker.buy.to_f}}",
         "waiting for: sell <= #{price.to_f}"
       )
       exchange.next_ticker
@@ -193,8 +205,7 @@ class VirtualClient
       account.deposit exchange.item, amount
       log_yaml(
         "subject: bought #{amount.to_f} #{exchange.item} for #{actual_price.to_f} #{exchange.currency}/#{exchange.item}",
-        "balance:\n" +
-          account.to_yaml
+        balance_yaml_entry
       )
     end
   end
@@ -222,6 +233,12 @@ class VirtualClient
     @log.puts "---"
     @log.puts "time: #{Time.now}"
     entries.each { |entry| @log.puts entry }
+  end
+  
+  # Macro. See source code.
+  def balance_yaml_entry()
+    "balance:\n" +
+      account.to_hr_yaml.indent(2)
   end
   
   # Commission effective for this VirtualClient.
