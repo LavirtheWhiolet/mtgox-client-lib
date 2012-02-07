@@ -80,9 +80,14 @@ class MtGox
     (@conn.close(); @conn = nil) if @conn
   end
   
-  # ISO-4217 code of the currency you are currently working with.
+  # ISO-4217 code of the currency this exchange works with.
   def currency
     "USD"
+  end
+  
+  # ISO-4217 code of the item which is bought/sold at this exchange.
+  def item
+    "BTC"
   end
   
   def initialize  # :nodoc:

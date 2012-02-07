@@ -10,7 +10,7 @@ require 'facets/string/indent'
 
 # Persistent. Safe for access from multiple processes.
 # 
-# It also may be considered as map from item name to amount of that item.
+# It also may be considered as map from item name to amount of the item.
 # 
 class VirtualAccount
   
@@ -89,7 +89,7 @@ class VirtualAccount
 end
 
 
-class VirtualMtGoxClient
+class VirtualClient
   
   include Enumerable
   
@@ -99,11 +99,12 @@ class VirtualMtGoxClient
   # 
   # +log+ is IO.
   # 
-  def initialize(account_filename, log = STDERR)
+  def initialize(exchange, account_filename, log = STDERR)
     @account_filename = account_filename
-    @exchange = MtGox.instance
-    @account = nil
+    @exchange = exchange
     @log = log
+    #
+    @account = nil
   end
   
   begin
@@ -132,14 +133,14 @@ class VirtualMtGoxClient
   
   desc <<-TEXT
     add-funds amount
-        Adds `amount' of funds to your account (from nowhere).
+        Just adds `amount' of #{exchange.currency} to your account.
   TEXT
   def add_funds(amount)
     amount = arg_to_rational(amount)
     #
     with_account do
       @account.deposit(exchange.currency, amount)
-      log_yaml("subject: #{amount} #{exchange.currency} added from nowhere", balance_log)
+      log_yaml("subject: #{amount} #{exchange.currency} appeared in your account from nowhere", balance_log)
     end
   end
   
@@ -151,6 +152,8 @@ class VirtualMtGoxClient
     VirtualAccount.delete(@account_filename)
     log_yaml("subject: account cleared")
   end
+
+  
   
   private
   
@@ -239,4 +242,4 @@ args = ARGV[1..-1]
 account_filename = ENV["VIRTUAL_MTGOX_ACCOUNT_FILE"] || VirtualAccount::DEFAULT_FILENAME
 log = STDERR
 # Perform the operation!
-VirtualMtGoxClient.new(account_filename, log).__send__ op, *args
+VirtualClient.new(MtGox.instance, account_filename, log).__send__ op, *args
