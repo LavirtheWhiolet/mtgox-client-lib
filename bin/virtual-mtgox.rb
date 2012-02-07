@@ -3,6 +3,7 @@ require 'mtgox'
 require 'mathn'
 require 'string/to_rational'
 require 'facets/string/indent'
+require 'erb'
 
 
 # ---- Private Lib ----
@@ -95,11 +96,12 @@ class VirtualClient
   
   # 
   # +account_filename+ will be used to open VirtualAccount. See
-  # VirtualAccount#open() for details.
+  # VirtualAccount#open() for details. It may be omitted only if you are
+  # not going to use VirtualClient's methods which need your VirtualAccount.
   # 
   # +log+ is IO.
   # 
-  def initialize(exchange, account_filename, log = STDERR)
+  def initialize(exchange, account_filename = nil, log = STDERR)
     @account_filename = account_filename
     @exchange = exchange
     @log = log
@@ -111,30 +113,27 @@ class VirtualClient
     @@descriptions = ""
   end
   
-  # describes next method in terms of application's "help".
+  # Private.
+  # 
+  # It describes next method as if the description would be printed by
+  # "--help" command line argument.
+  # 
+  # +description+ is an ERB template in which you may use instance methods
+  # of the VirtualClient.
+  # 
   def self.desc(description)
     @@descriptions << description.rstrip << "\n\n"
   end
   
-  # Descriptions collected with #desc() (in the form of single String).
-  def self.help
-    @@descriptions
-  end
-  
-  desc <<-TEXT
-    balance
-        Prints your account balance in YAML format.
-  TEXT
-  def balance()
-    with_account do
-      puts @account.to_yaml
-    end
+  # Description of methods of this VirtualClient in the form suitable for
+  # printing by "--help" command line argument.
+  def help
+    ERB.new(@@descriptions).result(binding)
   end
   
   desc <<-TEXT
     add-funds amount
-        Just adds `amount' of money (in current exchange's currency) to your
-        account.
+        Just adds `amount' of <%=exchange.currency%> to your account.
   TEXT
   def add_funds(amount)
     amount = arg_to_rational(amount)
@@ -153,9 +152,19 @@ class VirtualClient
     VirtualAccount.delete(@account_filename)
     log_yaml("subject: account cleared")
   end
+  
+  desc <<-TEXT
+    info
+        Prints information about your account.
+  TEXT
+  def info
+    with_account do
+      puts "balance:\n" +
+        @account.to_yaml.indent(2)
+      puts "commission: #{(commission * 100).to_f}%"
+    end
+  end
 
-  
-  
   private
   
   def arg_to_rational(arg)
@@ -183,7 +192,7 @@ class VirtualClient
   
   # Commission effective for this VirtualClient.
   def commission
-    "0.6".to_rational
+    "0.6".to_rational / 100
   end
   
   # opens account (with VirtualAccount#open()), sets <code>@account</code>
@@ -211,6 +220,9 @@ end
 
 # ----
 
+# Setup.
+exchange = MtGox.instance  # It is virtual *Mt. Gox* client, isn't it?
+
 # Print help (if needed).
 if %W{-h --help}.include?(ARGV[0]) or ARGV.empty? then
   puts <<-HELP
@@ -224,7 +236,7 @@ specified arguments. Supported operations are described below.
 
 Operations
 
-#{VirtualMtGoxClient.help.rstrip}
+#{VirtualClient.new(exchange).help.rstrip}
 
 Environment Variables
 
