@@ -133,14 +133,18 @@ class VirtualClient
   
   desc <<-TEXT
     add-funds amount
-        Just adds `amount' of <%=exchange.currency%> to your account.
+        Just adds +amount+ of <%=exchange.currency%> to your account.
   TEXT
   def add_funds(amount)
     amount = arg_to_rational(amount)
     #
     with_account do
-      @account.deposit(exchange.currency, amount)
-      log_yaml("subject: #{amount} #{exchange.currency} appeared in your account from nowhere", balance_log)
+      account.deposit(exchange.currency, amount)
+      log_yaml(
+        "subject: #{amount} #{exchange.currency} appeared in your account from nowhere",
+        "balance:\n" +
+          account.to_yaml
+      )
     end
   end
   
@@ -160,9 +164,47 @@ class VirtualClient
   def info
     with_account do
       puts "balance:\n" +
-        @account.to_yaml.indent(2)
+        account.to_yaml.indent(2)
       puts "commission: #{(commission * 100).to_f}%"
     end
+  end
+  
+  desc <<-TEXT
+    buy amount [price]
+        Buys +amount+ of <%=exchange.item%> for +price+ in <%=exchange.currency%>.
+        If price is not specified then <%=exchange.item%> are bought at
+        market price.
+  TEXT
+  def buy(amount, price = exchange.ticker.sell_price)
+    amount = arg_to_rational(amount)
+    price = if price.is_a? Numeric then price else arg_to_rational(price); end
+    # Wait until the price reaches requested one.
+    until exchange.ticker.sell_price <= price
+      log_yaml(
+        "ticker: {sell: #{exchange.ticker.sell.to_f}, buy: #{exchange.ticker.price.to_f}}",
+        "waiting for: sell <= #{price.to_f}"
+      )
+      exchange.next_ticker
+    end
+    # Buy!
+    with_account do
+      actual_price = exchange.ticker.sell_price * (1 + commission)
+      account.withdraw exchange.currency, amount * actual_price
+      account.deposit exchange.item, amount
+      log_yaml(
+        "subject: bought #{amount.to_f} #{exchange.item} for #{actual_price.to_f} #{exchange.currency}/#{exchange.item}",
+        "balance:\n" +
+          account.to_yaml
+      )
+    end
+  end
+  
+  desc <<-TEXT
+    ticker
+        Prints current ticker.
+  TEXT
+  def ticker
+    puts "{sell: #{exchange.ticker.sell.to_f}, buy: #{exchange.ticker.buy.to_f}}"
   end
 
   private
@@ -182,23 +224,12 @@ class VirtualClient
     entries.each { |entry| @log.puts entry }
   end
   
-  # Account balance in format suitable for #log_yaml(). The account must
-  # be opened (see #with_account()).
-  # 
-  def balance_log()
-    "balance:\n" +
-      @account.to_yaml.indent(2)
-  end
-  
   # Commission effective for this VirtualClient.
   def commission
     "0.6".to_rational / 100
   end
   
-  # opens account (with VirtualAccount#open()), sets <code>@account</code>
-  # to it and runs +block+. <code>@account</code> is set back to +nil+ after
-  # this operation.
-  # 
+  # See #account.
   def with_account(&block)
     VirtualAccount.open(@account_filename) do |account|
       @account = account
@@ -208,6 +239,14 @@ class VirtualClient
         @account = nil
       end
     end
+  end
+  
+  # VirtualAccount associated with this VirtualClient.
+  # 
+  # This method is valid only inside block passed to #with_account().
+  # 
+  def account
+    @account or raise %Q{Invalid use of this method; see doc.}
   end
   
   # Exchange this VirtualClient is client of.
