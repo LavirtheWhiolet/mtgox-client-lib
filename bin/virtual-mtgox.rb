@@ -133,7 +133,8 @@ class VirtualClient
   
   desc <<-TEXT
     add-funds amount
-        Just adds `amount' of #{exchange.currency} to your account.
+        Just adds `amount' of money (in current exchange's currency) to your
+        account.
   TEXT
   def add_funds(amount)
     amount = arg_to_rational(amount)
