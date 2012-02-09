@@ -126,8 +126,7 @@ class Exchange
       PSHash.delete(@account_filename)
     end
     
-    # deposits +amount+ of currency used at #exchange to this
-    # VirtualClient's account.
+    # deposits +amount+ of Exchange#currency to this VirtualClient's account.
     def deposit(amount)
       raise ArgumentError, %Q{can not deposit negative amount of #{exchange.currency} to account} if amount < 0
       #
