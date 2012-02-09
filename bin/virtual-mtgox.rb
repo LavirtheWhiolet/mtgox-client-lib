@@ -67,19 +67,33 @@ class VirtualAccount
   end
   
   # adds +amount+ of +item+ to this VirtualAccount.
+  # 
+  # It returns +amount+.
+  # 
   def deposit(item, amount)
     @content[item] ||= 0
     @content[item] += amount
+    #
+    return amount
   end
   
   # withdraws +amount+ of +item+ from this VirtualAccount.
+  # 
+  # It returns +amount+.
+  # 
   def withdraw(item, amount = :all)
     # Parse args.
     if amount == :all then amount = @content[item] || 0; end
     # Withdraw!
+    raise %Q{Insufficient funds: #{amount} #{item} is required but you have #{@content[item].to_f} #{item} only} unless can_withdraw?(item, amount)
     @content[item] ||= 0
-    raise %Q{Insufficient funds: #{amount} #{item} is required but you have #{@content[item].to_f} #{item} only} if amount > @content[item]
     @content[item] -= amount
+    #
+    return amount
+  end
+  
+  def can_withdraw?(item, amount)
+    (@content[item]
   end
   
   # Amount of +item+ this VirtualAccount has.
@@ -182,15 +196,31 @@ class VirtualClient
   end
   
   desc <<-TEXT
+    ticker
+        Prints current ticker.
+  TEXT
+  def ticker
+    puts "{sell: #{exchange.ticker.sell.to_f}, buy: #{exchange.ticker.buy.to_f}}"
+  end
+
+  desc <<-TEXT
     buy amount [price]
-        Buys +amount+ of <%=exchange.item%> for +price+ <%=exchange.currency%> per <%=exchange.item%>.
+        Buys +amount+ <%=exchange.item%> for +price+ <%=exchange.currency%> per <%=exchange.item%>.
         If price is not specified then <%=exchange.item%> are bought at
         market price.
   TEXT
   def buy(amount, price = exchange.ticker.sell_price)
     amount = arg_to_rational(amount)
     price = if price.is_a? Numeric then price else arg_to_rational(price); end
-    # Wait until the price reaches requested one.
+    # Check whether the deal is possible.
+    required_money = amount * price * (1 + commission)
+    with_account do
+      if required_money > account[exchange.currency] then
+        # Slight hack. The account will not allow to make this operation.
+        account.withdraw required_money
+      end
+    end
+    # Wait until the price reaches the requested one.
     until exchange.ticker.sell_price <= price
       log_yaml(
         "ticker: {sell: #{exchange.ticker.sell.to_f}, buy: #{exchange.ticker.buy.to_f}}",
@@ -200,24 +230,26 @@ class VirtualClient
     end
     # Buy!
     with_account do
-      actual_price = exchange.ticker.sell_price * (1 + commission)
-      account.withdraw exchange.currency, amount * actual_price
+      account.withdraw exchange.currency, spent_money = (amount * exchange.ticker.sell_price * (1 + commission))
       account.deposit exchange.item, amount
       log_yaml(
-        "subject: bought #{amount.to_f} #{exchange.item} for #{actual_price.to_f} #{exchange.currency}/#{exchange.item}",
+        "subject: #{amount.to_f} #{exchange.item} bought for #{spent_money.to_f} #{exchange.currency} (commission included)",
         balance_yaml_entry
       )
     end
   end
   
   desc <<-TEXT
-    ticker
-        Prints current ticker.
+    sell amount [price]
+        Sells +amount+ <%=exchange.item%> for +price+ <%=exchange.currency%> per <%=exchange.item%>.
+        If price is not specified then <%=exchange.item%> are sold at
+        market price.
   TEXT
-  def ticker
-    puts "{sell: #{exchange.ticker.sell.to_f}, buy: #{exchange.ticker.buy.to_f}}"
+  def sell(amount, price = exchange.ticker.buy_price)
+    
   end
-
+        
+  
   private
   
   def arg_to_rational(arg)

@@ -1,24 +1,19 @@
 require 'requirements'
+require 'exchange'
 require 'mathn'
 require 'socket.io'
 require 'utils'
 require 'faraday'
 
 
-# Model of the Mt. Gox exchange.
-# 
-# Remark: don't forget to #close() the MtGox instance after you have used it!
-# 
-# TODO: This class needs more functionality.
-# 
-class MtGox
+class MtGox < Exchange
   
   # TODO: Messages handling should be rewritten in this class.
   # Currently one can not subscribe to Ticker and to send authenticated
   # requests (which imply response) simultaneously.
   
-  # Mt. Gox sends money values multiplied by some number. This map
-  # maps ISO-4217 currency code to the mutliplier Mt. Gox applies.
+  # Mt. Gox sends money values multiplied by some number. This map maps
+  # ISO-4217 currency code to the mutliplier Mt. Gox applies.
   # 
   # Remark: the multipliers should be Integer numbers!
   # 
@@ -33,7 +28,7 @@ class MtGox
   # is usually faster (especially at establishing stage) but, as the name
   # implies, it is unsecure.
   # 
-  # returns MtGox.
+  # It returns this MtGox.
   # 
   def use_secure_connection(value = true)
     # 
@@ -45,12 +40,10 @@ class MtGox
     return self
   end
   
-  # Current Ticker.
   def ticker
     @ticker or (@ticker = request_ticker())
   end
   
-  # Ticker next after current (yes, this method waits for the Ticker change).
   def next_ticker
     once do
       # Read next message.
@@ -68,24 +61,21 @@ class MtGox
     end
   end
   
-  # 
-  # frees all system resources grabbed by MtGox, i. e. closes
-  # all connections, frees all mutexes etc. The instance remains usable
-  # but further operations require extra time to grab the freed resources again.
-  # 
   def close()
     # Close connection to actual exchange (if needed).
     (@conn.close(); @conn = nil) if @conn
   end
   
-  # ISO-4217 code of the currency this exchange works with.
   def currency
     "USD"
   end
   
-  # ISO-4217 code of the item which is bought/sold at this exchange.
   def item
     "BTC"
+  end
+  
+  def virtual_client(virtual_account_filename)
+    VirtualClient.new(virtual_account_filename, self)
   end
   
   def initialize  # :nodoc:
@@ -106,33 +96,11 @@ class MtGox
   # 
   def self.instance; @@instance; end
   
-  class Ticker
+  class VirtualClient < Exchange::VirtualClient
     
-    def initialize(sell, buy)
-      @sell, @buy = sell, buy
+    def commission
+      "0.6".to_rational / 100
     end
-    
-    # Sell price, MtGox#currency per bitcoin.
-    attr_reader :sell
-    
-    alias sell_price sell
-    
-    # Buy price, MtGox#currency per bitcoin.
-    attr_reader :buy
-    
-    alias buy_price buy
-    
-    def to_s
-      "Sell: #{sell.to_f} Buy: #{buy.to_f}"
-    end
-    
-    def == other
-      self.class == other.class &&
-      self.sell == other.sell &&
-      self.buy == other.buy
-    end
-    
-    alias eql? ===
     
   end
   
