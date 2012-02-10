@@ -139,11 +139,11 @@ class Exchange
     
     # (app. operation, see #app_operations_description)
     # 
-    # Prints info about your account, commission etc.
+    # Print info about your account, commission etc.
     # 
     def info()
-      puts "commission: #{(commission * 100).to_f}%"
       puts balance_to_yaml
+      puts "commission: #{(commission * 100).to_f}%"
     end
     
     # (app. operation, see #app_operations_description)
@@ -165,16 +165,28 @@ class Exchange
       position = item
       with_account { account[position] ||= 0; account[position] += amount }
       #
-      log(balance_to_yaml(position => amount))
+      log(
+        balance_to_yaml(position => amount)
+      )
     end
     
     # (app. operation, see #app_operations_description)
     # 
-    # Prints current ticker.
+    # Print current ticker. If "trace" is specified then print
+    # the ticker constantly.
     # 
-    def ticker()
-      puts "sell: #{exchange.ticker.sell.to_f}"
-      puts "buy: #{exchange.ticker.buy.to_f}"
+    def ticker(trace = "")
+      once do
+        puts(
+          "---",
+          "time: #{Time.now}",
+          "ticker: {buy: #{exchange.ticker.buy.to_f}, sell: #{exchange.ticker.sell.to_f}}"
+        )
+        if trace == "trace" then
+          exchange.next_ticker
+          redo
+        end
+      end
     end
     
     # (app. operation, see #app_operations_description)
@@ -209,9 +221,10 @@ class Exchange
       end
       #
       log(
+        "---",
         "time: #{Time.now}",
         "operation: buy",
-        "ticker: {sell: #{exchange.ticker.sell.to_f}, buy: #{exchange.ticker.buy.to_f}}",
+        "ticker: {buy: #{exchange.ticker.buy.to_f}, sell: #{exchange.ticker.sell.to_f}}",
         balance_to_yaml(
           exchange.currency => -money_spent,
           exchange.item => +amount
@@ -240,14 +253,26 @@ class Exchange
         exchange.next_ticker
       end
       # Sell!
+      money_gained = nil
       with_account do
         # Prepare positions.
         account[exchange.item] ||= 0
         account[exchange.currency] ||= 0
         # Sell!
         account[exchange.item] -= amount
-        account[exchange.currency] += (amount * exchange.ticker.buy_price) * (1 - commission)
+        account[exchange.currency] += (money_gained = (amount * exchange.ticker.buy_price) * (1 - commission))
       end
+      #
+      log(
+        "---",
+        "time: #{Time.now}",
+        "operation: sell",
+        "ticker: {buy: #{exchange.ticker.buy.to_f}, sell: #{exchange.ticker.sell.to_f}}",
+        balance_to_yaml(
+          exchange.currency => +money_gained,
+          exchange.item => -amount
+        )
+      )
     end
     
     # runs this VirtualClient as if it were a standalone application (with
@@ -353,8 +378,11 @@ class Exchange
       end
     end
     
-    # Macro. See source code.
-    def balance_to_yaml(changes)
+    # Macro. It returns #balance in human-readable YAML format.
+    # 
+    # +changes+ is map from account's position to its change.
+    # 
+    def balance_to_yaml(changes = {})
       "balance:\n" +
         balance.map do |position, amount|
           "  #{position}: #{amount.to_f}" +
