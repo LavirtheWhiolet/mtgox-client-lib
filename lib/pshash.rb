@@ -44,7 +44,7 @@ class PSHash < Hash
     private
     
     def lockfilename(filename)
-      "~#{filename}.lock"
+      "#{filename}.lock"
     end
     
   end

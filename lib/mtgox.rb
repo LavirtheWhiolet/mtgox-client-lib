@@ -40,6 +40,10 @@ class MtGox < Exchange
     return self
   end
   
+  def name
+    "Mt. Gox"
+  end
+  
   def ticker
     @ticker or (@ticker = request_ticker())
   end
