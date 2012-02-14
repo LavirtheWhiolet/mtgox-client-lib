@@ -44,10 +44,19 @@ class MtGox < Exchange
     "Mt. Gox"
   end
   
+  # Current Ticker.
+  # 
+  # Overridable.
+  # 
   def ticker
     @ticker or (@ticker = request_ticker())
   end
   
+  # returns Ticker next after current (this method waits for the #ticker
+  # change).
+  # 
+  # Overridable.
+  # 
   def next_ticker
     once do
       # Read next message.
@@ -65,6 +74,7 @@ class MtGox < Exchange
     end
   end
   
+  # Overridable.
   def close()
     # Close connection to actual exchange (if needed).
     (@conn.close(); @conn = nil) if @conn
@@ -78,10 +88,16 @@ class MtGox < Exchange
     "BTC"
   end
   
-  def virtual_client(virtual_account_filename)
+  # 
+  # Overridable.
+  # 
+  def virtual_client(virtual_account_filename = "#{ENV["HOME"]}/.virtual-mtgox-account")
     VirtualClient.new(virtual_account_filename, self)
   end
   
+  # 
+  # Overridable.
+  # 
   def initialize  # :nodoc:
     @ticker = nil
     @use_secure_connection = true
@@ -108,6 +124,35 @@ class MtGox < Exchange
     
   end
   
+  protected
+  
+  # returns what is told to MtGox by #use_secure_connection() method
+  # (true/false).
+  def use_secure_connection?
+    @use_secure_connection
+  end
+  
+  # Mt. Gox always sends Ticker in the following format (as part of
+  # various messages):
+  # 
+  #   {
+  #     "high": {"value":"NNNN", "value_int":"NNNN", "display":"CNNNN", ...},
+  #     "low": {"value":"NNNN", "value_int":"NNNN", "display":"CNNNN", ...},
+  #     "sell": {...},
+  #     "buy": {...},
+  #     ...
+  #   }
+  # 
+  # This method parses it and returns corresponding Ticker.
+  # 
+  def parse_ticker(ticker_as_json_script)
+    t = ticker_as_json_script
+    return Ticker.new(
+      parse_value(t["sell"]),
+      parse_value(t["buy"])
+    )    
+  end
+    
   private
   
   # Socket_IO connection to actual exchange.
@@ -116,7 +161,7 @@ class MtGox < Exchange
     if not @conn then
       # Connect.
       @conn =
-        if @use_secure_connection then Socket_IO.open("https://socketio.mtgox.com/socket.io")
+        if use_secure_connection? then Socket_IO.open("https://socketio.mtgox.com/socket.io")
         else Socket_IO.open("http://socketio.mtgox.com/socket.io"); end
       # Subscribe to ticker.
       @conn.send Socket_IO::JSONMsg[
@@ -126,52 +171,17 @@ class MtGox < Exchange
     end
     #
     return @conn
-  end
+  end  
   
   def parse_value(value_as_json_script)
     s = value_as_json_script
     return s["value_int"].to_i / CURRENCY_MULTIPLIERS[s["currency"]]
   end
   
-  def parse_ticker(ticker_as_json_script)
-    t = ticker_as_json_script
-    return Ticker.new(
-      parse_value(t["sell"]),
-      parse_value(t["buy"])
-    )    
-  end
-  
   def request_ticker()
     return next_ticker
     # TODO: Send explicit request to the exchange, don't wait until the ticker
     # changes.
-# 
-# Following code does not work because Mt. Gox sends different tickers
-# when using HTTP API and Socket.IO connection.
-# 
-#    # Try to request the Ticker using HTTP API version 1.
-#    begin
-#      #
-#      conn = Faraday.new(
-#        :headers => {
-#          :accept => "application/json",
-#          :user_agent => "Mt. Gox Client Library",
-#        },
-#        :ssl => {:verify => @use_secure_connection},
-#        :url => "https://mtgox.com"
-#      )
-#      # Request!
-#      resp = conn.get("/api/1/#{item}#{currency}/public/ticker")
-#      # Parse response.
-#      if resp.status != 200 then raise HTTPAPIRequestFailure; end
-#      body = resp.body
-#      body = JSON.parse(resp.body)
-#      ticker_json = body["return"] or raise %Q{Invalid format of response (may be this implementation is out of date?):\n#{resp.body}}
-#      return parse_ticker(ticker_json)
-#    # Fall back to next ticker. It's too late to get current one.
-#    rescue Errno::ECONNRESET, HTTPAPIRequestFailed
-#      return next_ticker
-#    end
   end
   
   class HTTPAPIRequestFailed < Exception; end

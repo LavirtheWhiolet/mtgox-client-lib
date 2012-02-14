@@ -172,21 +172,42 @@ class Exchange
     
     # (app. operation, see #app_operations_description)
     # 
-    # Print current ticker. If "trace" is specified then print
-    # the ticker constantly.
+    # Print current ticker. If "trace" (or "--trace") is specified then
+    # print ticker repeatedly as it changes.
     # 
-    def ticker(trace = "")
+    def ticker(trace = nil)
+      need_trace = (trace.in? ["trace", "--trace"])
       once do
         puts(
           "---",
           "time: #{Time.now}",
           "ticker: {buy: #{exchange.ticker.buy.to_f}, sell: #{exchange.ticker.sell.to_f}}"
         )
-        if trace == "trace" then
-          exchange.next_ticker
-          redo
-        end
+        if need_trace then exchange.next_ticker; redo; end
       end
+    end
+    
+    # (app. operation, see #app_operations_description)
+    # 
+    # Wait until appropriate offer appears at "<%=exchange.name%>" or, in
+    # other words, until <%=exchange.item%> exchange rate reaches specified one.
+    # 
+    # +offer_type+ may be "sell" or "buy".
+    # 
+    def wait_for(offer_type, price)
+      case offer_type
+      when "sell" then exchange.next_ticker until exchange.ticker.sell_price <= price
+      when "buy" then exchange.next_ticker until exchange.ticker.buy_price >= price
+      else raise ArgumentError, %Q{Unknown offer type: #{offer_type}}
+      end
+    end
+    
+    # (app. operation, see #app_operations_description)
+    # 
+    # The same as #wait_for.
+    # 
+    def wait(offer_type, price)
+      wait_for(offe_type, price)
     end
     
     # (app. operation, see #app_operations_description)
@@ -205,10 +226,8 @@ class Exchange
       amount = arg_to_num(amount)
       price = arg_to_num(price)
       raise ArgumentError, %Q{can not buy negative amount of #{exchange.item}} if amount < 0
-      # Wait until sell price will be appropriate.
-      until exchange.ticker.sell_price <= price
-        exchange.next_ticker
-      end
+      # 
+      wait_for "sell", price
       # Buy!
       money_spent = nil
       with_account do
@@ -248,10 +267,8 @@ class Exchange
       amount = arg_to_num(amount)
       price = arg_to_num(price)
       raise ArgumentError, %Q{can not sell negative amount of #{exchange.item}} if amount < 0
-      # Wait for appropriate offers.
-      until exchange.ticker.buy_price >= price
-        exchange.next_ticker
-      end
+      # 
+      wait_for "buy", price
       # Sell!
       money_gained = nil
       with_account do
@@ -285,7 +302,7 @@ class Exchange
           return
         end
         # Parse args.
-        op = ARGV.shift.to_sym
+        op = ARGV.shift.gsub("-", "_").to_sym
         args = ARGV
         # Perform the op.!
         __send__ op, *args
@@ -311,6 +328,9 @@ class Exchange
     # The documentation collected may have ERB tags. They are opened according
     # to ERB rules.
     # 
+    # Remark: Currently RDoc directives (such as <code>:call-seq:</code>,
+    # <code>:nodoc:</code> etc.) are not supported.
+    # 
     # See also #run_as_app().
     # 
     def app_operations_description
@@ -331,6 +351,8 @@ class Exchange
           gsub(/([a-z][a-zA-Z0-9_]+)\s*\=\s*.*?[\,\)\n]/, "[\\1]").
           # Remove all parentheses and commas.
           gsub(/[\(\)]/, ' ').gsub(',', '').
+          # Convert "_" to "-" in method name.
+          gsub(/^([^ ]+)/) { |function_name| function_name.gsub("_", "-") }.
           # Clean up.
           squeeze(' ')
         doc = rdoc.
@@ -399,6 +421,7 @@ class Exchange
 end
 
 
+# Private for Exchange::VirtualClient. It is hear just because of readability.
 HELP_TEMPLATE = <<ERB
 Virtual <%=exchange.name%> client.
 
