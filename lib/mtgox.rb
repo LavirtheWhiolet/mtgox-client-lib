@@ -91,7 +91,7 @@ class MtGox < Exchange
   # 
   # Overridable.
   # 
-  def virtual_client(virtual_account_filename = "#{ENV["HOME"]}/.virtual-mtgox-account")
+  def virtual_client(virtual_account_filename = VirtualClient::DEFAULT_ACCOUNT_FILENAME)
     VirtualClient.new(virtual_account_filename, self)
   end
   
@@ -117,6 +117,12 @@ class MtGox < Exchange
   def self.instance; @@instance; end
   
   class VirtualClient < Exchange::VirtualClient
+    
+    # Default name of file where account of this VirtualClient will be stored.
+    # 
+    # See also MtGox#virtual_client().
+    # 
+    DEFAULT_ACCOUNT_FILENAME = "#{ENV["HOME"]}/.virtual-mtgox-account"
     
     def commission
       "0.6".to_rational / 100
