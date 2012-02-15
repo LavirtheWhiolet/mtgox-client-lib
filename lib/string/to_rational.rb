@@ -30,4 +30,6 @@ class String
     return mantissa * Rational(10, 1) ** exponent
   end
   
+  alias to_r to_rational
+  
 end
