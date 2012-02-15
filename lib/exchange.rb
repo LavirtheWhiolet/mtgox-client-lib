@@ -51,37 +51,6 @@ class Exchange
     NextTickers.new(self)
   end
   
-  # :call-seq:
-  #   next_ticker_changes(min_abs_change = Ticker::Change[0, 0])
-  #   next_ticker_changes(min_abs_sell_change, min_abs_buy_change)
-  # 
-  # Changes of Ticker next after current, grouped by +min_abs_change+.
-  # 
-  # See also #next_tickers.
-  # 
-  def next_ticker_changes(*args)
-    min_change =
-      case args.size
-      when 0 then Ticker::Change[0, 0]
-      when 1 then args[0]
-      when 2 then Ticker::Change[args[0], args[1]]
-      else raise ArgumentError, %Q{wrong number of arguments (#{args.size} for 0-2)}
-      end
-    # 
-    last_significant_ticker = self.ticker
-    # 
-    next_tickers.
-      select do |next_ticker|
-        change = next_ticker - last_significant_ticker
-        change.sell >= min_change.sell || change.buy >= min_change.buy
-      end.
-      map do |next_ticker|
-        change = next_ticker - last_significant_ticker
-        last_significant_ticker = next_ticker
-        change
-      end
-  end
-  
   #
   # frees all system resources grabbed by this Exchange, i. e. closes
   # all connections, frees all mutexes etc. The instance remains usable
