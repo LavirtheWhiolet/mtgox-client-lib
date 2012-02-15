@@ -7,6 +7,9 @@ require 'string/indent_to'
 require 'strscan'
 require 'facets/string/indent'
 require 'facets/kernel/in'
+require 'facets/denumerable'
+require 'facets/module/is'
+require 'numeric/to_s_with_plus'
 
 
 # Model of the exchange.
@@ -37,6 +40,46 @@ class Exchange
   # 
   def next_ticker
     abstract
+  end
+  
+  # All Ticker-s next after current (the returned collection waits for
+  # every Ticker it is requested for).
+  # 
+  # See also #next_ticker.
+  # 
+  def next_tickers
+    NextTickers.new(self)
+  end
+  
+  # :call-seq:
+  #   next_ticker_changes(min_abs_change = Ticker::Change[0, 0])
+  #   next_ticker_changes(min_abs_sell_change, min_abs_buy_change)
+  # 
+  # Changes of Ticker next after current, grouped by +min_abs_change+.
+  # 
+  # See also #next_tickers.
+  # 
+  def next_ticker_changes(*args)
+    min_change =
+      case args.size
+      when 0 then Ticker::Change[0, 0]
+      when 1 then args[0]
+      when 2 then Ticker::Change[args[0], args[1]]
+      else raise ArgumentError, %Q{wrong number of arguments (#{args.size} for 0-2)}
+      end
+    # 
+    last_significant_ticker = self.ticker
+    # 
+    next_tickers.
+      select do |next_ticker|
+        change = next_ticker - last_significant_ticker
+        change.sell >= min_change.sell || change.buy >= min_change.buy
+      end.
+      map do |next_ticker|
+        change = next_ticker - last_significant_ticker
+        last_significant_ticker = next_ticker
+        change
+      end
   end
   
   #
@@ -80,6 +123,12 @@ class Exchange
   # Not inheritable.
   class Ticker
     
+    class << self
+      
+      alias [] new
+      
+    end
+    
     def initialize(sell_price, buy_price)
       @sell_price, @buy_price = sell_price, buy_price
     end
@@ -105,6 +154,37 @@ class Exchange
     end
     
     alias eql? ===
+    
+    # returns Ticker::Change.
+    def - other
+      # 
+      result = Change[
+        self.sell - other.sell,
+        self.buy - other.buy
+      ]
+      # Supply result with good to_s.
+      def result.to_s
+        "Sell: #{sell.to_f.to_s_with_plus} Buy: #{buy.to_f.to_s_with_plus}"
+      end
+      #
+      return result
+    end
+    
+    Change = Ticker
+    
+  end
+  
+  class NextTickers
+    
+    is Denumerable
+    
+    def initialize(exchange)
+      @exchange = exchange
+    end
+    
+    def each
+      yield @exchange.next_ticker while true
+    end
     
   end
   
@@ -172,42 +252,18 @@ class Exchange
     
     # (app. operation, see #app_operations_description)
     # 
-    # Print current ticker. If "trace" (or "--trace") is specified then
-    # print ticker repeatedly as it changes.
+    # Wait until current exchange rate (Ticker) changes.
     # 
-    def ticker(trace = nil)
-      need_trace = (trace.in? ["trace", "--trace"])
-      once do
-        puts(
-          "---",
-          "time: #{Time.now}",
-          "ticker: {buy: #{exchange.ticker.buy.to_f}, sell: #{exchange.ticker.sell.to_f}}"
-        )
-        if need_trace then exchange.next_ticker; redo; end
-      end
+    def wait_ticker_change()
+      exchange.next_ticker
     end
     
     # (app. operation, see #app_operations_description)
     # 
-    # Wait until appropriate offer appears at "<%=exchange.name%>" or, in
-    # other words, until <%=exchange.item%> exchange rate reaches specified one.
+    # The same as #wait_ticker_change.
     # 
-    # +offer_type+ may be "sell" or "buy".
-    # 
-    def wait_for(offer_type, price)
-      case offer_type
-      when "sell" then exchange.next_ticker until exchange.ticker.sell_price <= price
-      when "buy" then exchange.next_ticker until exchange.ticker.buy_price >= price
-      else raise ArgumentError, %Q{Unknown offer type: #{offer_type}}
-      end
-    end
-    
-    # (app. operation, see #app_operations_description)
-    # 
-    # The same as #wait_for.
-    # 
-    def wait(offer_type, price)
-      wait_for(offe_type, price)
+    def wait()
+      wait_ticker_change()
     end
     
     # (app. operation, see #app_operations_description)
@@ -227,7 +283,7 @@ class Exchange
       price = arg_to_num(price)
       raise ArgumentError, %Q{can not buy negative amount of #{exchange.item}} if amount < 0
       # 
-      wait_for "sell", price
+      wait until exchange.ticker.sell_price <= price 
       # Buy!
       money_spent = nil
       with_account do
@@ -268,7 +324,7 @@ class Exchange
       price = arg_to_num(price)
       raise ArgumentError, %Q{can not sell negative amount of #{exchange.item}} if amount < 0
       # 
-      wait_for "buy", price
+      wait until exchange.ticker.buy_price >= price
       # Sell!
       money_gained = nil
       with_account do
@@ -290,6 +346,23 @@ class Exchange
           exchange.item => -amount
         )
       )
+    end
+    
+    # (app. operation, see #app_operations_description)
+    # 
+    # Execute Ruby +script+ in context of Exchange::VirtualClient.
+    # See documentation for Exchange::VirtualClient for details.
+    # 
+    def exec(script)
+      eval script, binding
+    end
+    
+    # (app. operation, see #app_operations_description)
+    # 
+    # The same as #exec but +script+ is read from +file+.
+    # 
+    def exec_file(file)
+      exec(File.read(file))
     end
     
     # runs this VirtualClient as if it were a standalone application (with
@@ -409,7 +482,7 @@ class Exchange
         balance.map do |position, amount|
           "  #{position}: #{amount.to_f}" +
             if (change = changes[position]) != nil then
-              " (#{change > 0 ? '+' : ''}#{change.to_f})"
+              " (#{change.to_f.to_s_with_plus})"
             else
               "" 
             end

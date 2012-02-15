@@ -197,7 +197,8 @@ end
 
 __END__
 
-# Here I was learning how to send authenticated commands via MtGox. Socket.IO.
+# Here I was learning how to send authenticated commands to Mt. Gox via
+# Socket.IO.
 
 require 'requirements'
 require 'socket.io'
