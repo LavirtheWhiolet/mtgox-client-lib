@@ -1,6 +1,7 @@
 if RUBY_VERSION < '1.9.1'
 
 require 'rational'
+require 'strscan'
 
 
 class Float
@@ -36,8 +37,6 @@ class Float
   
 end
 
-
-require 'strscan'                             
 
 class String
   
@@ -96,6 +95,15 @@ class String
       result /= float[]
     end
     return result
+  end
+  
+end
+
+
+class NilClass
+  
+  def to_r
+    return 0.to_r
   end
   
 end
