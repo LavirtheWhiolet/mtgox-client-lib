@@ -1,8 +1,10 @@
 require 'requirements'
+require 'mathn'
 require 'pshash'
-require 'utils'
+require 'once'
+require 'abstract'
 require 'erb'
-require 'string/to_rational'
+require 'to_r'
 require 'string/indent_to'
 require 'strscan'
 require 'facets/string/indent'
@@ -208,8 +210,8 @@ class Exchange
     # Deposit +amount+ of +item+ to your account. Default +item+ is <%=exchange.currency%>.
     # 
     def deposit(amount, item = exchange.currency)
-      amount = arg_to_num(amount)
-      raise ArgumentError, %Q{can not deposit negative amount of #{exchange.currency} to account} if amount < 0
+      amount = amount.to_r
+      raise ArgumentError, %Q{can not deposit #{amount.to_f} #{exchange.currency} to account} if amount <= 0
       #
       position = item
       with_account { account[position] ||= 0; account[position] += amount }
@@ -248,9 +250,10 @@ class Exchange
     # may wait until the market price reaches the requested one).
     # 
     def buy(amount, price = exchange.ticker.sell_price)
-      amount = arg_to_num(amount)
-      price = arg_to_num(price)
-      raise ArgumentError, %Q{can not buy negative amount of #{exchange.item}} if amount < 0
+      amount = amount.to_r
+      raise ArgumentError, %Q{can not buy #{amount.to_f} #{exchange.item}} if amount <= 0
+      price = price.to_r
+      raise ArgumentError, %Q{price is inadequate: #{price.to_f}} if price <= 0
       # 
       wait until exchange.ticker.sell_price <= price 
       # Buy!
@@ -289,9 +292,10 @@ class Exchange
     # for appropriate offers at "<%=exchange.name%>").
     # 
     def sell(amount, price = exchange.ticker.buy_price)
-      amount = arg_to_num(amount)
-      price = arg_to_num(price)
-      raise ArgumentError, %Q{can not sell negative amount of #{exchange.item}} if amount < 0
+      amount = amount.to_r
+      raise ArgumentError, %Q{can not sell #{amount.to_f} #{exchange.item}} if amount <= 0
+      price = price.to_r
+      raise ArgumentError, %Q{price is inadequate: #{price.to_f}} if price <= 0
       # 
       wait until exchange.ticker.buy_price >= price
       # Sell!
@@ -429,17 +433,6 @@ class Exchange
     # 
     def account
       @account or raise %Q{Invalid usage; see method's documentation}
-    end
-    
-    def arg_to_num(arg)
-      case arg
-      when String
-        arg.to_rational(:or_nil) or raise ArgumentError,%Q{#{arg} is not a number}
-      when Numeric
-        arg
-      else
-        raise ArgumentError, %Q{#{arg.inspect} is not a number}
-      end
     end
     
     # Macro. It returns #balance in human-readable YAML format.
