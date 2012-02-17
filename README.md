@@ -10,7 +10,7 @@ By "clients" I mean humans.
 Status
 ------
 
-Stable. The library is ready for use, and its current interface will remain
+Stable. The library is ready for use. Its current interface will remain
 unchanged (new functionality will be added only).
 
 Requirements
