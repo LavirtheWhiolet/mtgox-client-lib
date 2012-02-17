@@ -126,23 +126,6 @@ class Exchange
     
     alias eql? ===
     
-    # returns Ticker::Change.
-    def - other
-      # 
-      result = Change[
-        self.sell - other.sell,
-        self.buy - other.buy
-      ]
-      # Supply result with good to_s.
-      def result.to_s
-        "Sell: #{sell.to_f.to_s_with_plus} Buy: #{buy.to_f.to_s_with_plus}"
-      end
-      #
-      return result
-    end
-    
-    Change = Ticker
-    
   end
   
   class NextTickers
@@ -356,6 +339,22 @@ class Exchange
     end
     
     private
+    
+    # 
+    # forwards all unknown methods to #exchange or its Exchange#ticker.
+    # Good for scripting.
+    # 
+    # See also #exec(), #exec_file().
+    # 
+    def method_missing(method_id, *args, &block)
+      if exchange.respond_to? method_id
+        exchange.__send__ method_id, *args, &block 
+      elsif exchange.ticker.respond_to? method_id
+        exchange.ticker.__send__ method_id, *args, &block
+      else
+        super(method_id, *args, &block)
+      end
+    end
     
     # writes +lines+ to log.
     def log(*lines)
