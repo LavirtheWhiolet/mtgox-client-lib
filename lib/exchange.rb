@@ -4,7 +4,7 @@ require 'pshash'
 require 'once'
 require 'abstract'
 require 'erb'
-require 'to_r'
+require 'backports/kernel/Rational'
 require 'string/indent_to'
 require 'strscan'
 require 'facets/string/indent'
@@ -18,7 +18,7 @@ require 'numeric/to_s_with_plus'
 # 
 # Remark: don't forget to #close() the Exchange after you have finished
 # using it!
-#
+# 
 # TODO: This class and its subclasses need more functionality.
 # 
 class Exchange
@@ -210,8 +210,8 @@ class Exchange
     # Deposit +amount+ of +item+ to your account. Default +item+ is <%=exchange.currency%>.
     # 
     def deposit(amount, item = exchange.currency)
-      amount = amount.to_r
-      raise ArgumentError, %Q{can not deposit #{amount.to_f} #{exchange.currency} to account} if amount <= 0
+      amount = Rational(amount)
+      raise ArgumentError, %Q{can not deposit negative amount of #{exchange.currency} to account} if amount < 0
       #
       position = item
       with_account { account[position] ||= 0; account[position] += amount }
@@ -250,10 +250,9 @@ class Exchange
     # may wait until the market price reaches the requested one).
     # 
     def buy(amount, price = exchange.ticker.sell_price)
-      amount = amount.to_r
-      raise ArgumentError, %Q{can not buy #{amount.to_f} #{exchange.item}} if amount <= 0
-      price = price.to_r
-      raise ArgumentError, %Q{price is inadequate: #{price.to_f}} if price <= 0
+      amount = Rational(amount)
+      raise ArgumentError, %Q{can not buy negative amount of #{exchange.item}} if amount < 0
+      price = Rational(price)
       # 
       wait until exchange.ticker.sell_price <= price 
       # Buy!
@@ -292,10 +291,9 @@ class Exchange
     # for appropriate offers at "<%=exchange.name%>").
     # 
     def sell(amount, price = exchange.ticker.buy_price)
-      amount = amount.to_r
-      raise ArgumentError, %Q{can not sell #{amount.to_f} #{exchange.item}} if amount <= 0
-      price = price.to_r
-      raise ArgumentError, %Q{price is inadequate: #{price.to_f}} if price <= 0
+      amount = Rational(amount)
+      raise ArgumentError, %Q{can not sell negative amount of #{exchange.item}} if amount < 0
+      price = Rational(price)
       # 
       wait until exchange.ticker.buy_price >= price
       # Sell!

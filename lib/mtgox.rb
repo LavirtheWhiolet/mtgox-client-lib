@@ -1,7 +1,7 @@
 require 'requirements'
 require 'exchange'
 require 'mathn'
-require 'to_r'
+require 'backports/kernel/Rational'
 require 'socket.io'
 require 'once'
 require 'faraday'
@@ -126,7 +126,7 @@ class MtGox < Exchange
     DEFAULT_ACCOUNT_FILENAME = "#{ENV["HOME"]}/.virtual-mtgox-account"
     
     def commission
-      "0.6".to_r / 100
+      Rational("0.6") / 100
     end
     
   end
