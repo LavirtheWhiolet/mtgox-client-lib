@@ -10,7 +10,8 @@ By "clients" I mean humans.
 Status
 ------
 
-Alpha. The library is currently in development and not ready for wide use.
+Stable. The library is ready for use, and its current interface will remain
+unchanged (new functionality will be added only).
 
 Requirements
 ------------
@@ -29,14 +30,14 @@ How to use
 classes, functions and other elements implemented in the library you may use
 RDoc (with `rdoc lib` command).
 
-"bin" directory contains source code for executables. Ruby scripts (with "*.rb"
-filename) may be executed directly, but don't forget to tell Ruby where the
-library modules reside (using "-I" key; for example
-`ruby -Ilib bin/some-script.rb`).
+"bin" directory contains source code for executables. Ruby scripts in "bin"
+(with "*.rb" filename) may be executed directly, but don't forget to tell Ruby
+where the library modules reside (using "-I" key; for example
+`ruby -Ilib bin/some-script.rb`). All the scripts accept "-h" or "--help" key.
 
-You may use Rake to perform various tasks (for example, installing executables
-into system directory with executables). Use `rake --tasks` command to see
-what you can do with Rake here (and what is implemented in "Rakefile").
+You may use Rake to perform various tasks implemented in "Rakefile" (for
+example, installing executables into system directory with executables).
+Use `rake --tasks` command to see what you can do with Rake here.
 
 Development
 -----------
