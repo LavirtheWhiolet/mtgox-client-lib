@@ -356,7 +356,7 @@ class Exchange
       end
     end
     
-    # writes +lines+ to log.
+    # writes +lines+ to +STDERR+.
     def log(*lines)
       lines.each { |line| STDERR.puts line }
     end
