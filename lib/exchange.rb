@@ -115,7 +115,7 @@ class Exchange
     alias buy buy_price
     
     def to_s
-      "Sell: #{sell.to_f} Buy: #{buy.to_f}"
+      "Buy: #{buy.to_f} Sell: #{sell.to_f} "
     end
     
     def == other
