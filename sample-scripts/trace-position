@@ -37,10 +37,12 @@ eval <<-RUBY
 RUBY
 # Trace!
 old_price = price
+first_time = true
 loop do
-  if price != old_price
+  if price != old_price or first_time
     puts "#{price_to_trace_s}: #{price.to_f} (#{(price - old_price).to_pt.to_f.to_s_with_plus} pt.)  P/L: #{currency} #{profit_loss.to_f.round_to(0.01)} (#{price_diff.to_pt.to_f.round_to(0.1)} pt.)"
   end
   old_price = price
+  first_time = false
   wait_ticker_change
 end
