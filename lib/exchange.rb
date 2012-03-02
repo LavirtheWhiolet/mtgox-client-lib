@@ -305,9 +305,10 @@ class Exchange
     # (app. operation, see #app_operations_description)
     # 
     # Execute Ruby +script+ in context of Exchange::VirtualClient.
+    # +arg+-s are accessible in +script+ via +arg+ array.
     # See documentation for Exchange::VirtualClient for details.
     # 
-    def exec(script)
+    def exec(script, *arg)
       eval script, binding
     end
     
@@ -315,8 +316,8 @@ class Exchange
     # 
     # The same as #exec but +script+ is read from +file+.
     # 
-    def exec_file(file)
-      exec(File.read(file))
+    def exec_file(file, *arg)
+      exec(File.read(file), *arg)
     end
     
     # runs this VirtualClient as if it were a standalone application (with
@@ -392,6 +393,8 @@ class Exchange
         call = call.
           # Convert arguments with default values to "[arg]" form.
           gsub(/([a-z][a-zA-Z0-9_]+)\s*\=\s*.*?[\,\)\n]/, "[\\1]").
+          # Convert rest arguments to "[arg [arg [...]]] form.
+          gsub(/\*\s*([a-z][a-zA-Z0-9_]+)/, "[\\1 [\\1 [...]]]").
           # Remove all parentheses and commas.
           gsub(/[\(\)]/, ' ').gsub(',', '').
           # Convert "_" to "-" in method name.
