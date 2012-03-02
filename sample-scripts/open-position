@@ -1,1 +1,29 @@
+# This script opens trading position.
 
+# Parse args.
+file_to_save_position_into, position_type, coins_amount = *arg
+raise %("#{file_to_save_position_into}" already exists) if File.exist? file_to_save_position_into
+operation =
+  case position_type
+  when "buy", "bull" then :buy
+  when "sell", "bear" then :sell
+  else raise %(Unknown position type: #{position_type})
+  end
+coins_amount = Rational(coins_amount)
+# Open the position!
+self.__send__ operation, coins_amount
+# Save the position.
+File.open(file_to_save_position_into, "w") do |io|
+  io.puts "open time: #{Time.now}"
+  case operation
+  when :buy
+    io.puts "profit condition: buy_price - #{buy_price * (1 + commission)}  # must be positive"
+    io.puts "how to close: sell #{coins_amount}"
+    io.puts "price to trace: buy"
+  when :sell 
+    io.puts "profit condition: #{sell_price * (1 - commission)} - sell_price  # must be positive"
+    io.puts "how to close: buy #{coins_amount}"
+    io.puts "price to trace: sell"
+  end
+  io.puts "amount: #{coins_amount}  # #{item}"
+end

@@ -1,0 +1,17 @@
+# This script closes position opened with "open-position" script.
+
+require 'facets'
+
+# Parse args.
+open_position_file = arg[0] or raise %(File with saved opened position is not specified)
+raise %("#{open_position_file}" does not exist) unless File.file? open_position_file
+# Read position.
+position = YAML.load_file open_position_file
+# Close the position!
+eval position["how to close"]
+File.delete open_position_file
+# Log the closing.
+profit_loss = eval "(#{position["profit condition"]}) * (#{position["amount"]}) * (1 - commission)"
+log(
+  "profit/loss: #{currency} #{profit_loss.to_f.round_to(0.01)}"
+)

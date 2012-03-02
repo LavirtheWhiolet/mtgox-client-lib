@@ -1,0 +1,46 @@
+# This script traces position opened with "open-position" script until
+# interrupt.
+
+require 'yaml'
+require 'facets'
+
+class ::Numeric
+  # Price to points.
+  def to_pt
+    self * 1e4
+  end
+end
+
+# Parse args.
+open_position_file = arg[0] or raise %(File with saved opened position is not specified)
+raise %("#{open_position_file}" does not exist) unless File.file? open_position_file
+# Read and parse the position.
+position = YAML.load_file(open_position_file)
+$coins_amount = Rational(position["amount"])
+eval <<-RUBY
+  def price_diff
+    #{position["profit condition"]}
+  end
+  def price
+    ticker.#{position["price to trace"]}
+  end
+  def price_to_trace_s
+    "#{case position["price to trace"]
+      when "buy" then "Buy"
+      when "sell" then "Sell"
+      end
+    }"
+  end
+  def profit_loss
+    price_diff * $coins_amount * (1 - commission)
+  end
+RUBY
+# Trace!
+old_price = price
+loop do
+  if price != old_price
+    puts "#{price_to_trace_s}: #{price.to_f} (#{(price - old_price).to_pt.to_f.to_s_with_plus} pt.)  P/L: #{currency} #{profit_loss.to_f.round_to(0.01)} (#{price_diff.to_pt.to_f.round_to(0.1)} pt.)"
+  end
+  old_price = price
+  wait_ticker_change
+end
