@@ -17,11 +17,13 @@ File.open(file_to_save_position_into, "w") do |io|
   io.puts "open time: #{Time.now}"
   case operation
   when :buy
-    io.puts "profit condition: buy_price - #{buy_price * (1 + commission)}  # must be positive"
+    initial_sell_price = sell_price
+    io.puts "profit per item: buy_price * (1 - commission) - #{initial_sell_price} * (1 + commission)  # must be positive"
     io.puts "how to close: sell #{coins_amount}"
     io.puts "price to trace: buy"
-  when :sell 
-    io.puts "profit condition: #{sell_price * (1 - commission)} - sell_price  # must be positive"
+  when :sell
+    initial_buy_price = buy_price
+    io.puts "profit per item: #{initial_buy_price} * (1 - commission) - sell_price * (1 + commission)  # must be positive"
     io.puts "how to close: buy #{coins_amount}"
     io.puts "price to trace: sell"
   end

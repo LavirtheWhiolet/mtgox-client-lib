@@ -11,7 +11,7 @@ position = YAML.load_file open_position_file
 eval position["how to close"]
 File.delete open_position_file
 # Log the closing.
-profit_loss = eval "(#{position["profit condition"]}) * (#{position["amount"]}) * (1 - commission)"
+profit_loss = eval "(#{position["profit per item"]}) * (#{position["amount"]})"
 log(
   "profit/loss: #{currency} #{profit_loss.to_f.round_to(0.01)}"
 )
