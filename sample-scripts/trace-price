@@ -1,5 +1,7 @@
 # This script traces close price until interrupted.
 
+require 'facets/numeric/round_to'
+
 
 class ::Numeric
   def to_pt
@@ -16,8 +18,9 @@ loop do
     else ticker.sell_price
     end
   old_close_price ||= close_price
+  spread = sell_price - buy_price
   log(
-    "Close: #{close_price.to_f} (#{(close_price - old_close_price).to_pt.to_f.to_s_with_plus} pt.)"
+    "Close: #{close_price.to_f} (#{(close_price - old_close_price).to_pt.to_f.to_s_with_plus} pt.)  Spread: #{spread.to_pt.to_f} pt."
   )
   old_close_price = close_price
   old_ticker = ticker
