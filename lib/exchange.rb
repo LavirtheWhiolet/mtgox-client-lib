@@ -128,20 +128,6 @@ class Exchange
     
   end
   
-  class NextTickers
-    
-    is Denumerable
-    
-    def initialize(exchange)
-      @exchange = exchange
-    end
-    
-    def each
-      yield @exchange.next_ticker while true
-    end
-    
-  end
-  
   class VirtualClient
     
     # Accessible to Exchange only.
@@ -453,6 +439,22 @@ class Exchange
 
   end
   
+  private
+  
+  class NextTickers
+    
+    is Denumerable
+    
+    def initialize(exchange)
+      @exchange = exchange
+    end
+    
+    def each
+      yield @exchange.next_ticker while true
+    end
+    
+  end
+    
 end
 
 
