@@ -1,5 +1,5 @@
 require 'rubygems'
-gem 'facets'
+gem 'facets', '2.9.2'
 require 'facets'
 
 desc "Installs executables and library modules into home directory."

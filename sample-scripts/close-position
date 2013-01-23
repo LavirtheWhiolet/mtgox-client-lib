@@ -1,6 +1,7 @@
 # This script closes position opened with "open-position" script.
 
 require 'facets'
+require 'yaml'
 
 # Parse args.
 open_position_file = arg[0] or raise %(File with saved opened position is not specified)
