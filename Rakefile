@@ -1,3 +1,6 @@
+# Add this file's directory to the library path.
+$: << File.dirname(__FILE__)
+# Require gems.
 require 'rubygems'
 gem 'facets', '2.9.2'
 require 'facets'
